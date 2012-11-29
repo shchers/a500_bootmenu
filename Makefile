@@ -22,6 +22,19 @@ OBJS := $(O)/start.o $(LIB_OBJS) $(BL_OBJS)
 
 BOOTLOADER := bootloader_v9
 
+# TODO: Implement generating SBK from CPUID
+## CPU ID should be defined outside Makefile and will be used for generating SBK
+#CPUID :=
+SBK :=
+# Path to APX bootloader, required for starting download mode
+APX_BOOTLOADER :=
+# Path to boot config table (BCT) file which was downloaded from device
+BCT_FILE :=
+# Path to flash configuration file
+FLASHCFG_FILE :=
+# Path to nVidia flash tool
+NVFLASH := $(shell PATH=./:$PATH /usr/bin/which nvflash)
+
 # Attempt to create a output directory.
 $(shell [ -d ${O} ] || mkdir -p ${O})
 
@@ -74,3 +87,14 @@ clean:
 	rm -f $(O)/bootmenu.bin
 	rm -f $(O)/$(BOOTLOADER).bin
 	rm -f $(O)/$(BOOTLOADER).blob
+
+flash:
+#	$(if $(CPUID),,$(error CPUID not defined))
+	$(if $(SBK),,$(error SBK not defined))
+	$(if $(NVFLASH),,$(error nvflash tool not found))
+	$(if $(APX_BOOTLOADER),,$(error APX bootloader not defined "APX_BOOTLOADER"))
+	$(if $(BCT_FILE),,$(error BCT file not defined "BCT_FILE"))
+	$(if $(FLASHCFG_FILE),,$(error Flash configuration file not defined "FLASHCFG_FILE"))
+	$(NVFLASH) --bct $(BCT_FILE) --setbct --configfile $(FLASHCFG_FILE) --bl $(APX_BOOTLOADER) --odmdata 0x300d8011 --sbk $(SBK) --sync --wait
+	$(NVFLASH) -r --format_partition 4
+	$(NVFLASH) -r --download 4 $(O)/$(BOOTLOADER).bin
